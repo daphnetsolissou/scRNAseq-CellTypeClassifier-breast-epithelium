@@ -1,0 +1,675 @@
+---
+title: "RNA seq replication"
+author: "Grigoris Ntoulaveris / Daphne Tsolissou"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+source("scRNA_R_pipeline.R")
+
+```
+
+```{r}
+install.packages("data.table")
+```
+
+```{r}
+library(R.utils)
+library(data.table)
+```
+
+# Data exploration
+
+## Individual 4
+
+```{r}
+
+file_path_id4 <- "data/GSM3099846_Ind4_Expression_Matrix.txt.gz"
+data <- fread(file_path_id4, sep = "\t", header = TRUE, data.table = TRUE)
+data <- transpose(data, keep.names = "cells", make.names = "V1")
+
+dataset_name4 <- "Ind4"
+
+#head(data)
+
+```
+
+
+```{r}
+data <- data.frame(data)
+data_ind4_seurat <- build_seurat_object(data, dataset_name4)
+
+```
+
+
+
+## Individual 5
+```{r}
+
+file_path_id5 <- "data/GSM3099847_Ind5_Expression_Matrix.txt.gz"
+data <- fread(file_path_id5, sep = "\t", header = TRUE, data.table = TRUE)
+data <- transpose(data, keep.names = "cells", make.names = "V1")
+
+dataset_name5 <- "Ind5"
+
+#head(data)
+
+```
+
+
+```{r}
+data <- data.frame(data)
+data_ind5_seurat <- build_seurat_object(data, dataset_name5)
+
+```
+
+
+## Individual 6
+```{r}
+
+file_path_id6 <- "data/GSM3099848_Ind6_Expression_Matrix.txt.gz"
+data <- fread(file_path_id6, sep = "\t", header = TRUE, data.table = TRUE)
+data <- transpose(data, keep.names = "cells", make.names = "V1")
+
+dataset_name6 <- "Ind6"
+
+#head(data)
+
+```
+
+
+```{r}
+data <- data.frame(data)
+data_ind6_seurat <- build_seurat_object(data, dataset_name6)
+
+```
+
+
+
+## Individual 7
+```{r}
+
+file_path_id7 <- "data/GSM3099849_Ind7_Expression_Matrix.txt.gz"
+data <- fread(file_path_id7, sep = "\t", header = TRUE, data.table = TRUE)
+data <- transpose(data, keep.names = "cells", make.names = "V1")
+
+dataset_name7 <- "Ind7"
+
+#head(data)
+
+```
+
+
+```{r}
+data <- data.frame(data)
+data_ind7_seurat <- build_seurat_object(data, dataset_name7)
+
+```
+```{r}
+seurat_list <- list()
+
+seurat_list[[1]] <- data_ind4_seurat
+seurat_list[[2]] <- data_ind5_seurat
+seurat_list[[3]] <- data_ind6_seurat
+seurat_list[[4]] <- data_ind7_seurat
+
+```
+
+```{r}
+data_seurat <- merge(
+  seurat_list[[1]], y = c(seurat_list[[2]], seurat_list[[3]], seurat_list[[4]]), 
+  add.cell.ids = NULL, 
+  project = "Ind 4-7"
+  )
+
+```
+
+
+# Quality Control
+
+Quality control is an essential step in a scRNA seq pipeline to ensure reliability and accuracy for the data. It is performed in order to filter out low-quality cells. 
+
+Low-quality cells can cells that express too little genes or cells that express too many genes, which can be a case of multiple cells clustered together and recognized as a single cell. The cells that have a high expression of mitochondrial genes also need to be filtered out, because high mitochondrial gene expression is observed in dying cells.
+
+These datasets have no determined mitochondrial genes. However, this step is included in the pipeline so that it can be applicable to other real scRNA seq datasets.
+
+```{r}
+data_seurat <- find_mitochondrial_genes(data_seurat)
+print(data_seurat@meta.data)
+
+```
+
+In the following plots the nCount_RNA corresponds to the total number of RNA molecules detected in a cell, which can be considered as a measure of the cell's RNA content or overall expression level. nFeature_RNA represents the count of unique genes or features with non-zero expression in a cell and is an indicator of the diversity of expressed genes in a cell. percent_mito corresponds to the percentage of mitochondrial genes that are expressed in a cell and a high number is indicative of cells of low-quality.
+
+Based on the following violin plots it appears that there is an almost even distribution of cells with a high and low number of total RNA molecules. The same is true when we consider the total amount of unique genes in each cell. For both metrics the spectrum of the values is not very large though, indicating that the cells of the dataset are mostly of the same quality and expression. No mitochondrial gene expression was also detected therefore there are no dying cells in the mixture.
+
+```{r}
+plot_Features_violin(data_seurat)
+
+```
+
+In the following plot the total number of RNA molecules and the total number of unique genes for each cell are plotted together, to ensure that the previous visualization is not misleading in terms of cell quality. Good quality cells usually have a high value in both metrics. If many cells are clustered towards the bottom right of the plot it would mean that only a few number of unique genes were detected and those are sequenced continuously providing a misleading high number of transcripts. If many cells are clustered towards the top left of the plot it would mean that the sequencer had discovered many unique genes but they wouldn't be deeply sequenced enough to provide meaningful results.
+
+As it stands most of the cells seem to be of good quality, however there is need for removal of a small number of low-quality cells.
+
+```{r}
+plot_Features_scatter(data_seurat)
+
+```
+# Filtering
+
+In the filtering step low-quality cells are removed from the dataset, based on the results of the quality control.
+
+```{r}
+data_seurat <- filter_cells(data_seurat, 
+                             nFeature_RNA_min = 500, nFeature_RNA_max = 6000, percent_mito_max = 10)
+
+data_seurat
+```
+
+# Normalization
+In order to be able to compare the levels of expression across multiple cells the data need to be normalized. The gene expression measurements for each cell is divided by the total expression of all cells, is then multiplied by a scaling factor. The result is also transformed into log space.
+
+```{r}
+data_seurat <- NormalizeData(data_seurat, normalization.method = "LogNormalize")
+
+```
+
+# Regress Out Normalization
+
+```{r}
+# Access the RNA assay
+assay_data <- data_seurat@assays$RNA
+
+# Retrieve the counts matrix
+counts_matrix <- assay_data@counts
+
+# Find the UMI values
+umi_values <- colSums(counts_matrix)
+
+```
+
+
+
+```{r}
+
+data_seurat <- perform_regress_out(data_seurat)
+
+```
+
+# Highly variable genes identification
+Normally, at this step the highly variable genes are identified. Here, because the genes were only 200, all of them were considered highly variable. The 10 most variable genes are identified and plotted below.
+
+```{r}
+
+# find all high variable genes
+data_seurat <- FindPlot_variable_genes(data_seurat)
+
+```
+
+# Scaling
+
+This step is performed to remove unwanted variations in the data, that occur because of technical issues (eg batch effect) or biological issues (eg difference state of the cell cycle between some cells). These variations need to be removed so that the cells won't cluster together based on them, but rather based on biological similarity and effect.
+
+
+```{r}
+#data_seurat <- scale_data(data_seurat)
+```
+
+# PCA
+
+```{r}
+data_seurat <- RunPCA(data_seurat, features = VariableFeatures(object = data_seurat))
+
+```
+```{r}
+
+cells_num <- data_seurat@assays[["RNA"]]@counts@Dim[2]
+pc_heatmap <- DimHeatmap(data_seurat, dims = 1:9, cells = cells_num, balanced = TRUE)
+    
+elbow_plot <- ElbowPlot(data_seurat) +
+      labs(title = "Elbow Plot")
+dimplot_unclustered <- DimPlot(data_seurat, reduction="pca")
+
+print(pc_heatmap)
+print(elbow_plot)
+print(dimplot_unclustered)
+
+```
+
+
+## Dimensionality Reduction
+
+
+## Clustering
+
+### GMM clustering
+
+```{r}
+clustering_results <- GMM_clustering(data_seurat, "pca")
+
+data_seurat <- clustering_results[[1]]
+gmm_model <- clustering_results[[2]]
+cell_embeddings <- clustering_results[[3]]
+
+```
+
+```{r}
+# with tSNE projections
+clustering_results <- GMM_clustering(data_seurat, "pca")
+
+data_seurat <- clustering_results[[1]]
+gmm_model <- clustering_results[[2]]
+cell_embeddings <- clustering_results[[3]]
+
+```
+
+
+```{r}
+data_seurat@meta.data
+
+```
+```{r}
+# with tSNE as projection for plots
+clustering_plots <- plot_clustering(dataset_name, data_seurat, gmm_model)
+
+```
+
+
+
+### Density based clustering
+```{r}
+# For Clustering algorithm
+library(cluster)
+
+#install.packages("fpc")
+library(fpc)
+
+#install.packages("dbscan")
+library(dbscan)
+
+```
+
+
+
+```{r}
+perform_dbscan_clustering <- function(seurat_object, dim_reduction_technique) {
+  if (dim_reduction_technique == "pca") {
+    # Run PCA
+    seurat_object <- RunPCA(seurat_object, features = VariableFeatures(object = seurat_object))
+    
+    # Get PCA embeddings
+    embeddings <- seurat_object@reductions$pca@cell.embeddings
+    
+    # Perform DBSCAN clustering
+    dbscan_result <- dbscan(embeddings, eps = 50, MinPts = 50)
+    
+    # Assign cluster labels to Seurat object
+    seurat_object$cluster_label <- as.character(dbscan_result$cluster)
+    
+    # Plot t-SNE visualization
+    seurat_object <- RunTSNE(seurat_object, dims = 1:10)
+    DimPlot(seurat_object, group.by = "cluster_label")
+    
+    return(seurat_object)
+  } else {
+    stop("Unsupported dimensionality reduction technique.")
+  }
+}
+
+```
+
+```{r}
+data_seurat <- perform_dbscan_clustering(data_seurat, "pca")
+
+#data_seurat <- clustering_results[[1]]
+#gmm_model <- clustering_results[[2]]
+#cell_embeddings <- clustering_results[[3]]
+
+```
+
+```{r}
+DimPlot(data_seurat, group.by = "cluster_label")
+
+```
+
+
+```{r}
+# only with PCA
+clustering_plots <- plot_clustering(dataset_name, data_seurat, gmm_model)
+
+```
+
+
+
+
+### KNN graphs clustering
+
+```{r}
+data_seurat <- FindNeighbors(data_seurat, dims = 1:10)
+data_seurat <- FindClusters(data_seurat, resolution = 0.2)
+
+```
+
+```{r}
+data_seurat <- RunTSNE(data_seurat, dims = 1:10)
+
+
+```
+
+```{r}
+DimPlot(data_seurat, reduction = "tsne")
+
+```
+```{r}
+saveRDS(data_seurat, file="ind4_7_seurat")
+
+```
+
+
+```{r}
+loaded_seurat <- readRDS(file = "ind4_7_seurat")
+
+```
+
+```{r}
+data_seurat <- loaded_seurat
+
+```
+
+```{r}
+markers <- FindMarkers(loaded_seurat, ident.1 = 0, ident.2 = 1)
+
+```
+
+```{r}
+head(markers)
+```
+
+This will give you a data frame that shows the cluster labels and corresponding gene expression for the target gene(s) within the specified clusters.
+
+```{r}
+# Find to which clusters the marker genes specified in the paper exist
+cluster_labels <- Idents(loaded_seurat)
+
+target_clusters <- c(1,2,3,4,5,6,7,8,9,10)  
+target_cluster_indices <- which(cluster_labels %in% target_clusters)
+
+gene_expression <- loaded_seurat@assays$RNA@counts[c("APOE", "TIMP1"), target_cluster_indices]
+
+result <- data.frame(Cluster = cluster_labels[target_cluster_indices], GeneExpression = gene_expression)
+print(result)
+
+
+```
+
+```{r}
+# Find marker genes for all clusters
+marker_genes <- FindAllMarkers(loaded_seurat, only.pos = TRUE)
+
+# Print the marker genes for each cluster
+print(marker_genes)
+
+
+```
+
+
+
+```{r}
+#library(readxl)
+
+# Load the Excel file
+excel_file <- "genes_labels_ind4_7.xlsx"
+data <- read_excel(excel_file)
+
+# Find unique gene entries for each cluster label
+unique_genes <- data %>%
+  group_by(cluster) %>%
+  distinct(gene) %>%
+  ungroup()
+
+# Identify clusters with no unique gene entries
+clusters_without_unique_genes <- setdiff(unique(data$cluster), unique_genes$cluster)
+
+# Add highest avg_diff gene for clusters without unique genes
+genes_to_add <- data %>%
+  filter(cluster %in% clusters_without_unique_genes) %>%
+  group_by(cluster) %>%
+  filter(avg_diff == max(avg_diff)) %>%
+  distinct(gene) %>%
+  ungroup()
+
+unique_genes <- bind_rows(unique_genes, genes_to_add)
+
+# Print the unique gene entries for each cluster label
+unique_genes_by_cluster <- split(unique_genes, unique_genes$cluster)
+for (cluster_label in names(unique_genes_by_cluster)) {
+  cat("Cluster:", cluster_label, "\n")
+  print(unique_genes_by_cluster[[cluster_label]])
+  cat("\n")
+}
+
+
+
+```
+
+```{r}
+basal_genes <- unique_genes_by_cluster[["Basal"]]$gene
+myo_genes <- unique_genes_by_cluster[["Basal_Myoepithelial"]]$gene
+l1_1_genes <- unique_genes_by_cluster[["Luminal_1_1"]]$gene
+l1_2_genes <- unique_genes_by_cluster[["Luminal_1_2"]]$gene
+l2_genes <- unique_genes_by_cluster[["Luminal_2"]]$gene
+
+basal_clusters <- marker_genes[marker_genes$gene %in% basal_genes, ]
+myo_clusters <- marker_genes[marker_genes$gene %in% myo_genes, ]
+l1_1_clusters <- marker_genes[marker_genes$gene %in% l1_1_genes, ]
+l1_2_clusters <- marker_genes[marker_genes$gene %in% l1_2_genes, ]
+l2_clusters <- marker_genes[marker_genes$gene %in% l2_genes, ]
+
+# Print the marker genes of interest
+print(basal_clusters)
+print(myo_clusters)
+print(l1_1_clusters)
+print(l1_2_clusters)
+print(l2_clusters)
+
+```
+
+
+
+```{r}
+# Find dominant cluster labels and their counts for each marker gene set
+basal_clusters_count <- table(basal_clusters$cluster)
+top_basal_clusters <- names(sort(basal_clusters_count, decreasing = TRUE)[1:5])
+
+myo_clusters_count <- table(myo_clusters$cluster)
+top_myo_clusters <- names(sort(myo_clusters_count, decreasing = TRUE)[1:5])
+
+l1_1_clusters_count <- table(l1_1_clusters$cluster)
+top_l1_1_clusters <- names(sort(l1_1_clusters_count, decreasing = TRUE)[1:5])
+
+l1_2_clusters_count <- table(l1_2_clusters$cluster)
+top_l1_2_clusters <- names(sort(l1_2_clusters_count, decreasing = TRUE)[1:5])
+
+l2_clusters_count <- table(l2_clusters$cluster)
+top_l2_clusters <- names(sort(l2_clusters_count, decreasing = TRUE)[1:5])
+
+# Print the four dominant cluster labels and their counts
+cat("Top 4 dominant cluster labels for basal_clusters:\n")
+print(top_basal_clusters)
+cat("\n")
+
+cat("Top 4 dominant cluster labels for myo_clusters:\n")
+print(top_myo_clusters)
+cat("\n")
+
+cat("Top 4 dominant cluster labels for l1_1_clusters:\n")
+print(top_l1_1_clusters)
+cat("\n")
+
+cat("Top 4 dominant cluster labels for l1_2_clusters:\n")
+print(top_l1_2_clusters)
+cat("\n")
+
+cat("Top 4 dominant cluster labels for l2_clusters:\n")
+print(top_l2_clusters)
+cat("\n")
+
+
+
+```
+
+
+## Visualization
+
+### only with pca
+```{r}
+# only with PCA
+clustering_plots <- plot_clustering(dataset_name, data_seurat, gmm_model)
+
+```
+
+### with tsne
+
+```{r}
+# with tSNE as projection for plots
+clustering_plots <- plot_clustering(dataset_name, data_seurat, gmm_model)
+
+```
+
+
+```{r}
+post_probability_results <- extract_probability_results(gmm_model, cell_embeddings)
+
+posterior_data <- post_probability_results[[1]]
+posterior_data_long <- post_probability_results[[2]]
+
+```
+
+```{r}
+cell_joint_probabilities <- calculate_joint_probabilities(posterior_data_long, gmm_model)
+
+
+```
+
+```{r}
+plot_post_probabilities(dataset_name, posterior_data, posterior_data_long, cell_joint_probabilities)
+
+```
+
+
+
+# UMAP
+
+## Dimensionality Reduction
+
+```{r}
+data_seurat <- reduce_dimensions(data_seurat, "umap")
+
+```
+
+
+## Clustering
+
+```{r}
+clustering_results <- GMM_clustering(data_seurat, "umap")
+
+data_seurat <- clustering_results[[1]]
+gmm_model <- clustering_results[[2]]
+cell_embeddings <- clustering_results[[3]]
+
+```
+
+
+```{r}
+data_seurat@meta.data
+
+```
+
+
+
+## Visualization
+
+```{r}
+clustering_plots <- plot_clustering(dataset_name, data_seurat, gmm_model)
+
+```
+
+```{r}
+post_probability_results <- extract_probability_results(gmm_model, cell_embeddings)
+
+posterior_data <- post_probability_results[[1]]
+posterior_data_long <- post_probability_results[[2]]
+
+```
+
+```{r}
+cell_joint_probabilities <- calculate_joint_probabilities(posterior_data_long, gmm_model)
+
+
+```
+
+```{r}
+plot_post_probabilities(dataset_name, posterior_data, posterior_data_long, cell_joint_probabilities)
+
+```
+
+
+
+# tSNE
+
+## Dimensionality Reduction
+
+```{r}
+data_seurat <- reduce_dimensions(data_seurat, "tsne")
+
+```
+
+
+## Clustering
+
+```{r}
+clustering_results <- GMM_clustering(data_seurat, "tsne")
+
+data_seurat <- clustering_results[[1]]
+gmm_model <- clustering_results[[2]]
+cell_embeddings <- clustering_results[[3]]
+
+```
+
+```{r}
+data_seurat@meta.data
+
+```
+
+
+## Visualization
+
+```{r}
+clustering_plots <- plot_clustering(dataset_name, data_seurat, gmm_model)
+
+```
+
+```{r}
+post_probability_results <- extract_probability_results(gmm_model, cell_embeddings)
+
+posterior_data <- post_probability_results[[1]]
+posterior_data_long <- post_probability_results[[2]]
+
+```
+
+```{r}
+cell_joint_probabilities <- calculate_joint_probabilities(posterior_data_long, gmm_model)
+
+
+```
+
+```{r}
+plot_post_probabilities(dataset_name, posterior_data, posterior_data_long, cell_joint_probabilities)
+
+```
+
+
+
+
