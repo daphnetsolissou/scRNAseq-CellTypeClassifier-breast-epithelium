@@ -8,6 +8,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC, LinearSVC
+from sklearn.ensemble import RandomForestClassifier
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -31,7 +32,7 @@ def objective(trial, train_x, train_y, clf_name, seed):
 def define_new_model_estimator(clf_name, trial, seed):
     if clf_name == 'svm':
         c_svm = trial.suggest_float('c_svm', 1, 10, log=True)
-        gamma_svm = trial.suggest_float("gamma_svm", 0.01, 0.1, log=True)
+        gamma_svm = trial.suggest_float('gamma_svm', 0.01, 0.1, log=True)
 
         estimator = OneVsRestClassifier(SVC(kernel='rbf', gamma=gamma_svm, C=c_svm, random_state=seed, max_iter=1000),
                                         n_jobs=-1)
@@ -45,11 +46,24 @@ def define_new_model_estimator(clf_name, trial, seed):
         gnb_var_smoothing = trial.suggest_float("gnb_var_smoothing", 1e-10, 1e-6, log=True)
 
         estimator = GaussianNB(var_smoothing=gnb_var_smoothing)
+    elif clf_name == "rf":
+        rf_n_estimators = trial.suggest_int('rf_n_estimators', 10, 400, 10)
+        rf_max_depth = trial.suggest_float('rf_max_depth', 1, 20)
+        rf_max_features = trial.suggest_categorical('rf_max_features', ['sqrt', 'log2', None])
+        rf_min_impurity_decrease = trial.suggest_float('rf_min_impurity_decrease', 0.0, 0.2)
+        rf_min_samples_leaf = trial.suggest_int('rf_min_samples_leaf', 1, 10)
+
+        estimator = RandomForestClassifier(n_estimators=rf_n_estimators, criterion='gini', 
+                                           max_depth=rf_max_depth, max_features=rf_max_features,
+                                           min_impurity_decrease=rf_min_impurity_decrease,
+                                           min_samples_leaf=rf_min_samples_leaf, 
+                                           n_jobs=-1, random_state=seed)
     else:
         print('Unsupported classifier name. Please choose only between these options\n'
               '\t "lr": LinearRegression,\n'
               '\t "svm": Support Vector Machines,\n'
-              '\t "gnb": Gaussian Naive Bayes')
+              '\t "gnb": Gaussian Naive Bayes,\n'
+              '\t "rf": Random Forests') 
         sys.exit(-1)
 
     if trial.should_prune():
