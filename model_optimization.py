@@ -19,9 +19,9 @@ def objective(trial, train_x, train_y, clf_name, seed):
     # -- Make a pipeline
     # pipeline = make_pipeline(estimator)
     cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=seed)
-    if clf_name == 'svm':
-        scaler = StandardScaler()
-        train_x = scaler.fit_transform(train_x, train_y)
+    # if clf_name == 'svm':
+    scaler = StandardScaler()
+    train_x = scaler.fit_transform(train_x, train_y)
     # -- Evaluate the score by cross-validation
     score = cross_val_score(estimator, train_x, train_y, scoring='balanced_accuracy', cv=cv, n_jobs=-1)
     ba = score.mean()  # calculate the mean
