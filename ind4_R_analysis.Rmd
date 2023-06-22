@@ -1,9 +1,12 @@
 ---
-title: "pipeline_tryout"
+title: "paper replication"
 author: "Grigoris Ntoulaveris"
 date: "`r Sys.Date()`"
 output: html_document
 ---
+
+The following is an attempt at replicating the results of the study https://europepmc.org/article/MED/29795293#abstract, specifically for the scRNA seq data of the "Individual 4" dataset. Differences with the paper's methods can be found only in the clustering section. Besides density based clustering (DBSCAN), which corresponded to the paper's methods, two more clustering approaches are presented (GMMs, SNN-Louvain). A comparison with the paper's results concering the marker genes of interest ensues the two new algorithms.
+
 
 ```{r}
 source("scRNA_R_pipeline.R")
@@ -22,7 +25,6 @@ data <- transpose(data, keep.names = "cells", make.names = "V1")
 
 dataset_name <- "GSM3099846_Ind4_Expression_Matrix"
 
-#head(data)
 
 ```
 
@@ -31,6 +33,7 @@ dataset_name <- "GSM3099846_Ind4_Expression_Matrix"
 melted_data <- melt_dataset(data)
 
 ```
+
 ```{r}
 
 library_size <- get_library_size(melted_data)
@@ -47,7 +50,6 @@ plot_GeneExpression_heatmap(melted_data)
 
 # Data preprocessing
 
-The analysis of the datasets is performed using the R package "Seurat". It is one of the most famous packages for scRNA seq data analysis that is used in most papers.
 
 ```{r}
 data_copy <- data.frame(data)
@@ -62,11 +64,6 @@ data_seurat <- build_seurat_object(data_copy, dataset_name)
 
 # Quality Control
 
-Quality control is an essential step in a scRNA seq pipeline to ensure reliability and accuracy for the data. It is performed in order to filter out low-quality cells. 
-
-Low-quality cells can cells that express too little genes or cells that express too many genes, which can be a case of multiple cells clustered together and recognized as a single cell. The cells that have a high expression of mitochondrial genes also need to be filtered out, because high mitochondrial gene expression is observed in dying cells.
-
-These datasets have no determined mitochondrial genes. However, this step is included in the pipeline so that it can be applicable to other real scRNA seq datasets.
 
 ```{r}
 data_seurat <- find_mitochondrial_genes(data_seurat)
@@ -76,7 +73,6 @@ print(data_seurat@meta.data)
 
 In the following plots the nCount_RNA corresponds to the total number of RNA molecules detected in a cell, which can be considered as a measure of the cell's RNA content or overall expression level. nFeature_RNA represents the count of unique genes or features with non-zero expression in a cell and is an indicator of the diversity of expressed genes in a cell. percent_mito corresponds to the percentage of mitochondrial genes that are expressed in a cell and a high number is indicative of cells of low-quality.
 
-Based on the following violin plots it appears that there is an almost even distribution of cells with a high and low number of total RNA molecules. The same is true when we consider the total amount of unique genes in each cell. For both metrics the spectrum of the values is not very large though, indicating that the cells of the dataset are mostly of the same quality and expression. No mitochondrial gene expression was also detected therefore there are no dying cells in the mixture.
 
 ```{r}
 plot_Features_violin(data_seurat)
@@ -85,12 +81,14 @@ plot_Features_violin(data_seurat)
 
 In the following plot the total number of RNA molecules and the total number of unique genes for each cell are plotted together, to ensure that the previous visualization is not misleading in terms of cell quality. Good quality cells usually have a high value in both metrics. If many cells are clustered towards the bottom right of the plot it would mean that only a few number of unique genes were detected and those are sequenced continuously providing a misleading high number of transcripts. If many cells are clustered towards the top left of the plot it would mean that the sequencer had discovered many unique genes but they wouldn't be deeply sequenced enough to provide meaningful results.
 
-As it stands most of the cells seem to be of good quality, however there is need for removal of a small number of low-quality cells.
 
 ```{r}
 plot_Features_scatter(data_seurat)
 
 ```
+
+
+
 # Filtering
 
 In the filtering step low-quality cells are removed from the dataset, based on the results of the quality control.
@@ -102,6 +100,8 @@ data_seurat <- filter_cells(data_seurat,
 data_seurat
 ```
 
+
+
 # Normalization
 In order to be able to compare the levels of expression across multiple cells the data need to be normalized. The gene expression measurements for each cell is divided by the total expression of all cells, is then multiplied by a scaling factor. The result is also transformed into log space.
 
@@ -109,6 +109,8 @@ In order to be able to compare the levels of expression across multiple cells th
 data_seurat <- NormalizeData(data_seurat, normalization.method = "LogNormalize")
 
 ```
+
+
 
 # Regress Out Normalization
 
@@ -132,8 +134,10 @@ data_seurat <- perform_regress_out(data_seurat)
 
 ```
 
+
+
 # Highly variable genes identification
-Normally, at this step the highly variable genes are identified. Here, because the genes were only 200, all of them were considered highly variable. The 10 most variable genes are identified and plotted below.
+
 
 ```{r}
 
@@ -142,14 +146,7 @@ data_seurat <- FindPlot_variable_genes(data_seurat)
 
 ```
 
-# Scaling
 
-This step is performed to remove unwanted variations in the data, that occur because of technical issues (eg batch effect) or biological issues (eg difference state of the cell cycle between some cells). These variations need to be removed so that the cells won't cluster together based on them, but rather based on biological similarity and effect.
-
-
-```{r}
-#data_seurat <- scale_data(data_seurat)
-```
 
 # PCA
 
@@ -158,6 +155,8 @@ This step is performed to remove unwanted variations in the data, that occur bec
 data_seurat <- reduce_dimensions(data_seurat, "pca")
 
 ```
+
+
 
 # Save - Load seurat
 
@@ -171,6 +170,8 @@ saveRDS(data_seurat, file="ind4_seurat")
 data_seurat <- readRDS(file = "ind4_seurat")
 
 ```
+
+
 
 # Clustering
 
@@ -186,17 +187,16 @@ cell_embeddings <- clustering_results[[3]]
 ```
 
 
-
 ```{r}
 data_seurat@meta.data
 
 ```
+
 ```{r}
 # with tSNE as projection for plots
 clustering_plots <- plot_clustering(dataset_name, data_seurat, gmm_model)
 
 ```
-
 
 
 ```{r}
@@ -247,9 +247,6 @@ ggplot(top_genes_small, aes(x = cluster, y = gene, fill = avg_log2FC)) +
 
 
 
-
-
-
 ## Density based clustering
 
 
@@ -262,7 +259,6 @@ data_seurat <- perform_dbscan_clustering(data_seurat, "pca")
 DimPlot(data_seurat, group.by = "cluster_label")
 
 ```
-
 
 ```{r}
 # only with PCA
@@ -334,6 +330,7 @@ ggplot(top_genes_dt, aes(x = cluster, y = gene, fill = avg_log2FC)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   labs(x = "Cluster", y = "Gene")
+
 ```
 
 
