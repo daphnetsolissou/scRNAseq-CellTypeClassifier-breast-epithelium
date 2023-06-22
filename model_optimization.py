@@ -8,9 +8,9 @@ from sklearn.multiclass import OneVsRestClassifier, OneVsOneClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.svm import SVC, LinearSVC
 
-classifiers = {'svm': SVC(kernel='rbf'),
-               'lr': LogisticRegression(),
-               'gnb': GaussianNB()
+classifiers = {0: 'svm',
+               1: 'lr',
+               2: 'gnb'
                }
 
 
@@ -67,20 +67,22 @@ def optimize_one_model(data_x, data_y, clf_name, seed):
     my_objective = lambda trial: objective(trial, data_x, data_y, clf_name, seed)
     sampler = TPESampler(seed=seed)
     study = optuna.create_study(direction='maximize', sampler=sampler)
-    study.optimize(my_objective, n_trials=50, show_progress_bar=True, n_jobs=-1)
+    study.optimize(my_objective, n_trials=100, show_progress_bar=True, n_jobs=-1)
+
     best_estimator = retrain_best_model_objective(clf_name, study.best_trial, data_x, data_y, seed)
+
     best_params = study.best_params
     return best_estimator, best_params
 
 
-def run_optimization_all_classifiers(x, y):
-    results_dict = {}
+def run_optimization_all_classifiers(x, y, seed=148):
+    estimators_dict = {}
     params_dict = {}
-    for key, clf in classifiers.items():
-        print(f'Starting optimization for classifier {key}')
+    for key, name in classifiers.items():
+        print(f'Starting optimization for classifier {name}')
         # res_df = nested_cv(clf, hyperparam_grids[key], x, y)
-        res_df, best_params = optimize_one_model(x, y, clf, key)
-        results_dict[key] = res_df
-        params_dict[key] = best_params
+        best_estimator, best_params = optimize_one_model(x, y, name, seed)
+        estimators_dict[name] = best_estimator
+        params_dict[name] = best_params
         # break
-    return results_dict, params_dict
+    return estimators_dict, params_dict
