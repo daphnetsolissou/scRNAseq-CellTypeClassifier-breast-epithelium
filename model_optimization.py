@@ -50,11 +50,11 @@ def define_new_model_estimator(clf_name, trial, seed):
 
         estimator = GaussianNB(var_smoothing=gnb_var_smoothing)
     elif clf_name == "rf":
-        rf_n_estimators = trial.suggest_int('rf_n_estimators', 10, 400, 10)
-        rf_max_depth = trial.suggest_float('rf_max_depth', 1, 20)
+        rf_n_estimators = trial.suggest_float('rf_n_estimators', 50, 400, 50)
+        rf_max_depth = trial.suggest_float('rf_max_depth', 1.0, 5.0, 1.0)
         rf_max_features = trial.suggest_categorical('rf_max_features', ['sqrt', 'log2', None])
-        rf_min_impurity_decrease = trial.suggest_float('rf_min_impurity_decrease', 0.0, 0.2)
-        rf_min_samples_leaf = trial.suggest_int('rf_min_samples_leaf', 1, 10)
+        rf_min_impurity_decrease = trial.suggest_float('rf_min_impurity_decrease', 0.0, 0.2, 0.05)
+        rf_min_samples_leaf = trial.suggest_float('rf_min_samples_leaf', 2, 10, 2)
 
         estimator = RandomForestClassifier(n_estimators=rf_n_estimators, criterion='gini', 
                                            max_depth=rf_max_depth, max_features=rf_max_features,
@@ -62,11 +62,11 @@ def define_new_model_estimator(clf_name, trial, seed):
                                            min_samples_leaf=rf_min_samples_leaf, 
                                            n_jobs=-1, random_state=seed)
     elif clf_name == 'xgb':
-        xgb_eta = trial.suggest_float('xgb_eta', 0.0, 0.5)
-        xgb_gamma = trial.suggest_int('xgb_gamma', 0, 100, 10)
-        xgb_min_child_weight = trial.suggest_int('xgb_min_child_weight', 0, 10)
+        xgb_eta = trial.suggest_float('xgb_eta', 0.0, 0.5, 0.1)
+        xgb_gamma = trial.suggest_float('xgb_gamma', 0, 50, 10)
+        xgb_min_child_weight = trial.suggest_float('xgb_min_child_weight', 0, 5)
         xgb_subsample = trial.suggest_float('xgb_subsample', 0.1, 1.0, 0.1)
-        xgb_max_leaves = trial.sugges_int('xgb_max_leaves', 0, 200, 10)
+        xgb_max_leaves = trial.sugges_float('xgb_max_leaves', 0, 100, 20)
 
         estimator = XGBClassifier(booster='gbtree', eta=xgb_eta, gamma=xgb_gamma, 
                                   min_child_weight=xgb_min_child_weight,
@@ -97,7 +97,7 @@ def optimize_one_model(data_x, data_y, clf_name, seed):
     my_objective = lambda trial: objective(trial, data_x, data_y, clf_name, seed)
     sampler = TPESampler(seed=seed)
     study = optuna.create_study(direction='maximize', sampler=sampler)
-    study.optimize(my_objective, n_trials=25, show_progress_bar=True, n_jobs=-1)
+    study.optimize(my_objective, n_trials=5, show_progress_bar=True, n_jobs=-1)
 
     best_estimator = retrain_best_model_objective(clf_name, study.best_trial, data_x, data_y, seed)
     best_params = study.best_params
