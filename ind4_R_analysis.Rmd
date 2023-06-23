@@ -30,19 +30,19 @@ dataset_name <- "GSM3099846_Ind4_Expression_Matrix"
 
 
 ```{r}
-melted_data <- melt_dataset(data)
+#melted_data <- melt_dataset(data)
 
 ```
 
 ```{r}
 
-library_size <- get_library_size(melted_data)
+#library_size <- get_library_size(melted_data)
 
 ```
 
 ```{r}
 
-plot_GeneExpression_heatmap(melted_data)
+#plot_GeneExpression_heatmap(melted_data)
 
 
 ```
@@ -457,6 +457,33 @@ ggplot(comparison_df, aes(x = gene, fill = factor(label_diff))) +
 
 
 # Save the labeled results in a csv
+
+Save the initial expression matrix but with labeled cells
+```{r}
+#install.packages("zip")
+library(zip)
+
+expression_matrix <- t(GetAssayData(data_seurat, assay = "RNA"))
+expression_df <- as.data.frame(expression_matrix)
+expression_dt <- data.table(expression_df)
+
+cluster_labels <- Idents(data_seurat)
+cluster_labels_dt <- data.table(cluster_labels)
+
+joined_dt <- data.table(expression_dt, cluster = cluster_labels_dt)
+setnames(joined_dt, old = "cluster.cluster_labels", new = "cluster_label")
+
+# Save the data frame as a CSV file
+#write.csv(joined_dt, "ind4_exp_matrix_with_clusters.csv", row.names = FALSE)
+write.csv(joined_dt, file=gzfile("ind4_exp_matrix_with_clusters.csv.gz"), row.names = FALSE)
+
+```
+
+
+
+
+
+
 Save all PCs
 
 ```{r}
