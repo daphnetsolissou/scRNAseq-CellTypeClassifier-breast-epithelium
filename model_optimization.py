@@ -1,5 +1,7 @@
 import optuna
 import sys
+import numpy as np
+import scipy
 
 from optuna.samplers import TPESampler
 from sklearn.linear_model import LogisticRegression
@@ -9,6 +11,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC, LinearSVC
 from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -59,15 +62,22 @@ def define_new_model_estimator(clf_name, trial, seed):
                                            min_samples_leaf=rf_min_samples_leaf, 
                                            n_jobs=-1, random_state=seed)
     elif clf_name == 'xgb':
+        xgb_eta = trial.suggest_float('xgb_eta', 0.0, 0.5)
+        xgb_gamma = trial.suggest_int('xgb_gamma', 0, 100, 10)
+        xgb_min_child_weight = trial.suggest_int('xgb_min_child_weight', 0, 10)
+        xgb_subsample = trial.suggest_float('xgb_subsample', 0.1, 1.0, 0.1)
+        xgb_max_leaves = trial.sugges_int('xgb_max_leaves', 0, 200, 10)
 
-
-        estimator = 
+        estimator = XGBClassifier(booster='gbtree', eta=xgb_eta, gamma=xgb_gamma, 
+                                  min_child_weight=xgb_min_child_weight,
+                                  subsample=xgb_subsample, max_leaves=xgb_max_leaves)
     else:
         print('Unsupported classifier name. Please choose only between these options\n'
               '\t "lr": LinearRegression,\n'
               '\t "svm": Support Vector Machines,\n'
               '\t "gnb": Gaussian Naive Bayes,\n'
-              '\t "rf": Random Forests') 
+              '\t "rf": Random Forests,\n'
+              '\t "xgb": XGBoost') 
         sys.exit(-1)
 
     if trial.should_prune():
