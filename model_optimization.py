@@ -58,6 +58,10 @@ def define_new_model_estimator(clf_name, trial, seed):
                                            min_impurity_decrease=rf_min_impurity_decrease,
                                            min_samples_leaf=rf_min_samples_leaf, 
                                            n_jobs=-1, random_state=seed)
+    elif clf_name == 'xgb':
+
+
+        estimator = 
     else:
         print('Unsupported classifier name. Please choose only between these options\n'
               '\t "lr": LinearRegression,\n'
