@@ -63,7 +63,7 @@ def define_new_model_estimator(clf_name, trial, seed):
                                            n_jobs=-1, random_state=seed)
     elif clf_name == 'xgb':
         xgb_eta = trial.suggest_float('xgb_eta', 0.0, 0.5)
-        xgb_gamma = trial.suggest_int('xgb_gamma', 10, 50)
+        xgb_gamma = trial.suggest_int('xgb_gamma', 0, 50)
         xgb_min_child_weight = trial.suggest_float('xgb_min_child_weight', 0, 5)
         #xgb_subsample = trial.suggest_float('xgb_subsample', 0.1, 1.0)
         #xgb_max_leaves = trial.suggest_int('xgb_max_leaves', 0, 100)
