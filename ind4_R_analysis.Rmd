@@ -458,6 +458,32 @@ ggplot(comparison_df, aes(x = gene, fill = factor(label_diff))) +
 
 # Save the labeled results in a csv
 
+Save the expression matrix with the cluster labels of only the top 2000 highly variable genes in an attempt to evade the curse of dimensionality (and the excessive overfitting) in the classification process.
+
+```{r}
+var_genes <- VariableFeatures(data_seurat)
+top_var_genes <- head(var_genes, 2000)
+
+
+```
+
+```{r}
+expression_matrix <- t(GetAssayData(data_seurat, assay = "RNA")[top_var_genes, ])
+
+expression_df <- as.data.frame(expression_matrix)
+expression_dt <- data.table(expression_df)
+
+cluster_labels <- Idents(data_seurat)
+cluster_labels_dt <- data.table(cluster_labels)
+
+joined_dt <- data.table(expression_dt, cluster = cluster_labels_dt)
+setnames(joined_dt, old = "cluster.cluster_labels", new = "cluster_label")
+
+write.csv(joined_dt, file=gzfile("ind4_var_genes_with_clusters.csv.gz"), row.names = FALSE)
+
+```
+
+
 Save the initial expression matrix but with labeled cells
 ```{r}
 #install.packages("zip")
