@@ -40,7 +40,7 @@ def define_new_model_estimator(clf_name, trial, seed):
         estimator = OneVsRestClassifier(SVC(kernel='rbf', gamma=gamma_svm, C=c_svm, random_state=seed, max_iter=1000),
                                         n_jobs=-1)
     elif clf_name == 'lr':
-        lr_solver = trial.suggest_categorical('lr_solver', ['newton-cg', 'lbfgs', 'newton-cholesky', 'sag', 'saga'])
+        lr_solver = trial.suggest_categorical('lr_solver', ['newton-cg', 'lbfgs', 'sag', 'saga'])
         lr_c = trial.suggest_float('lr_c', 0.0001, 1, log=True)
 
         estimator = LogisticRegression(solver=lr_solver, C=lr_c, random_state=seed, penalty='l2',
@@ -65,12 +65,12 @@ def define_new_model_estimator(clf_name, trial, seed):
         xgb_eta = trial.suggest_float('xgb_eta', 0.0, 0.5)
         xgb_gamma = trial.suggest_int('xgb_gamma', 0, 50)
         xgb_min_child_weight = trial.suggest_float('xgb_min_child_weight', 0, 5)
-        #xgb_subsample = trial.suggest_float('xgb_subsample', 0.1, 1.0)
-        #xgb_max_leaves = trial.suggest_int('xgb_max_leaves', 0, 100)
+        xgb_subsample = trial.suggest_float('xgb_subsample', 0.1, 1.0)
+        xgb_max_leaves = trial.suggest_int('xgb_max_leaves', 0, 100)
 
         estimator = XGBClassifier(booster='gbtree', reg_lambda=0.1, eta=xgb_eta, gamma=xgb_gamma, 
-                                  min_child_weight=xgb_min_child_weight)#,
-                                  #subsample=xgb_subsample, max_leaves=xgb_max_leaves)
+                                  min_child_weight=xgb_min_child_weight,
+                                  subsample=xgb_subsample, max_leaves=xgb_max_leaves, seed=seed)
     else:
         print('Unsupported classifier name. Please choose only between these options\n'
               '\t "lr": LinearRegression,\n'
