@@ -97,7 +97,7 @@ def optimize_one_model(data_x, data_y, clf_name, seed):
     my_objective = lambda trial: objective(trial, data_x, data_y, clf_name, seed)
     sampler = TPESampler(seed=seed)
     study = optuna.create_study(direction='maximize', sampler=sampler)
-    study.optimize(my_objective, n_trials=10, show_progress_bar=True, n_jobs=-1)
+    study.optimize(my_objective, n_trials=25, show_progress_bar=True, n_jobs=-1)
 
     best_estimator = retrain_best_model_objective(clf_name, study.best_trial, data_x, data_y, seed)
     best_params = study.best_params
