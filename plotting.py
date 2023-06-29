@@ -36,7 +36,8 @@ def plot_metric_boxplots(results_dict):
 
     # Save the plot
     g.savefig(save_path_png, dpi=300, bbox_inches='tight')
-    g.savefig(save_path_pdf, dpi=300)
+    g.savefig(save_path_pdf, dpi=300, bbox_inches = 'tight')
+
 
 
 def plot_mccs(mcc_dict, std_errors):
@@ -88,8 +89,8 @@ def plot_mccs(mcc_dict, std_errors):
         counter += 1
 
     # Save the plot
-    plt.savefig(save_path_pdf, dpi=300)
-    plt.savefig(save_path_png, dpi=300, bbox_inches='tight')
+    plt.savefig(save_path_pdf, dpi=300, facecolor='white', bbox_inches='tight')
+    plt.savefig(save_path_png, dpi=300, facecolor='white', bbox_inches='tight')
     plt.show()
 
 
@@ -125,9 +126,10 @@ def plot_mean_std_errors(std_dict):
         counter += 1
 
     # Save the plot
-    plt.savefig(save_path_pdf, dpi=300)
-    plt.savefig(save_path_png, dpi=300, bbox_inches='tight')
+    plt.savefig(save_path_pdf, dpi=300, facecolor='white', bbox_inches='tight')
+    plt.savefig(save_path_png, dpi=300, facecolor='white', bbox_inches='tight')
     plt.show()
+
 
 
 def compare_mean_mccs(results_dict):
