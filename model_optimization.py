@@ -24,8 +24,8 @@ def objective(trial, train_x, train_y, clf_name, seed):
     # pipeline = make_pipeline(estimator)
     cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=seed)
     # if clf_name == 'svm':
-    scaler = StandardScaler()
-    train_x = scaler.fit_transform(train_x, train_y)
+    # scaler = StandardScaler()
+    # train_x = scaler.fit_transform(train_x, train_y)
     # -- Evaluate the score by cross-validation
     score = cross_val_score(estimator, train_x, train_y, scoring='balanced_accuracy', cv=cv, n_jobs=-1)
     ba = score.mean()  # calculate the mean
@@ -34,14 +34,14 @@ def objective(trial, train_x, train_y, clf_name, seed):
 
 def define_new_model_estimator(clf_name, trial, seed):
     if clf_name == 'svm':
-        c_svm = trial.suggest_float('c_svm', 1, 10, log=True)
-        gamma_svm = trial.suggest_float('gamma_svm', 0.01, 0.1, log=True)
+        c_svm = trial.suggest_float('c_svm', 0.001, 1, log=True)
+        gamma_svm = trial.suggest_float('gamma_svm', 0.001, 1, log=True)
 
         estimator = OneVsRestClassifier(SVC(kernel='rbf', gamma=gamma_svm, C=c_svm, random_state=seed, max_iter=1000),
                                         n_jobs=-1)
     elif clf_name == 'lr':
-        lr_solver = trial.suggest_categorical('lr_solver', ['newton-cg', 'lbfgs', 'newton-cholesky', 'sag', 'saga'])
-        lr_c = trial.suggest_float('lr_c', 0.01, 10, log=True)
+        lr_solver = trial.suggest_categorical('lr_solver', ['newton-cg', 'lbfgs', 'sag', 'saga'])
+        lr_c = trial.suggest_float('lr_c', 0.0001, 1, log=True)
 
         estimator = LogisticRegression(solver=lr_solver, C=lr_c, random_state=seed, penalty='l2',
                                        multi_class='ovr', max_iter=1000, n_jobs=-1)
@@ -50,27 +50,27 @@ def define_new_model_estimator(clf_name, trial, seed):
 
         estimator = GaussianNB(var_smoothing=gnb_var_smoothing)
     elif clf_name == "rf":
-        rf_n_estimators = trial.suggest_int('rf_n_estimators', 50, 400) #, step=50)
-        rf_max_depth = trial.suggest_int('rf_max_depth', 1, 5)
-        #rf_max_features = trial.suggest_categorical('rf_max_features', ['sqrt', 'log2', None])
+        rf_n_estimators = trial.suggest_int('rf_n_estimators', 10, 200) #, step=50)
+        rf_max_depth = trial.suggest_int('rf_max_depth', 1, 3)
+        rf_max_features = trial.suggest_categorical('rf_max_features', ['sqrt', 'log2', None])
         #rf_min_impurity_decrease = trial.suggest_float('rf_min_impurity_decrease', 0.0, 0.2 )#, step=0.05)
         #rf_min_samples_leaf = trial.suggest_float('rf_min_samples_leaf', 2, 10 )#, step=2)
 
         estimator = RandomForestClassifier(n_estimators=rf_n_estimators, criterion='gini', 
-                                           max_depth=rf_max_depth, #max_features=rf_max_features,
+                                           max_depth=rf_max_depth, max_features=rf_max_features,
                                            #min_impurity_decrease=rf_min_impurity_decrease,
                                            #min_samples_leaf=rf_min_samples_leaf, 
                                            n_jobs=-1, random_state=seed)
     elif clf_name == 'xgb':
         xgb_eta = trial.suggest_float('xgb_eta', 0.0, 0.5)
-        xgb_gamma = trial.suggest_int('xgb_gamma', 0, 50, 10)
+        xgb_gamma = trial.suggest_int('xgb_gamma', 0, 50)
         xgb_min_child_weight = trial.suggest_float('xgb_min_child_weight', 0, 5)
         xgb_subsample = trial.suggest_float('xgb_subsample', 0.1, 1.0)
         xgb_max_leaves = trial.suggest_int('xgb_max_leaves', 0, 100)
 
-        estimator = XGBClassifier(booster='gbtree', eta=xgb_eta, gamma=xgb_gamma, 
+        estimator = XGBClassifier(booster='gbtree', reg_lambda=0.1, eta=xgb_eta, gamma=xgb_gamma, 
                                   min_child_weight=xgb_min_child_weight,
-                                  subsample=xgb_subsample, max_leaves=xgb_max_leaves)
+                                  subsample=xgb_subsample, max_leaves=xgb_max_leaves, seed=seed)
     else:
         print('Unsupported classifier name. Please choose only between these options\n'
               '\t "lr": LinearRegression,\n'
@@ -97,7 +97,7 @@ def optimize_one_model(data_x, data_y, clf_name, seed):
     my_objective = lambda trial: objective(trial, data_x, data_y, clf_name, seed)
     sampler = TPESampler(seed=seed)
     study = optuna.create_study(direction='maximize', sampler=sampler)
-    study.optimize(my_objective, n_trials=10, show_progress_bar=True, n_jobs=-1)
+    study.optimize(my_objective, n_trials=25, show_progress_bar=True, n_jobs=-1)
 
     best_estimator = retrain_best_model_objective(clf_name, study.best_trial, data_x, data_y, seed)
     best_params = study.best_params
