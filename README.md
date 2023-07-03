@@ -18,8 +18,12 @@ The "winner" classifier of the nCV was trained on the entire training set using 
 ### Final model creation and testing
 The classifier was fit on the whole training set using the optimized hyperparameters of the simple 5-fold CV and then tested on the held-out test set.
 
+![Pipeline](breast_cells_training_pipeline.png)
+
 ## Results 
 The SVM algorithm with an RBF kernel was declared winner in 4/5 train (70%)-test (30%) splits, based on the comparison of the average MCC scores out of 50 outer loops for each algorithm. XGBoost was always a close second and the winner in one case. The testing of the final model gave very optimistic results with most samples being correctly classified as seen in the following confusion matrix. Most errors occured in the Luminal 2 (1) class, which contained the least samples in the dataset. The Basal class (2) achieved the highest scores in all classification report metrics.
+
+![Confusion Matrix](confusion_matrix_1_2_3.png)
 
 ## Future work 
 The optimistic results of the model do not inherently imply the same classification ability on a new dataset. Therefore, as a future part of the project the classifier is to be tested on the datasets of the other individuals (5-7) provided in the initial study and if possible to a similar breast epithelial dataset from another study. Finally, the next proposed plan for future work is the replication of the combined analysis of the paper (individuals 4-7) and then the creation of a more advanced model that will be able to differentiate between all 5 reported cell states of the study, using the established classification pipeline as a blueprint.
