@@ -19,7 +19,7 @@ The "winner" classifier of the nCV was trained on the entire training set using 
 The classifier was fit on the whole training set using the optimized hyperparameters of the simple 5-fold CV and then tested on the held-out test set.
 
 <p align="center">
-  <img src="breast_cells_training_pipeline.png" alt="Pipeline" width="400">
+  <img src="breast_cells_training_pipeline.png" alt="Pipeline" width="500">
 </p>
 
 
